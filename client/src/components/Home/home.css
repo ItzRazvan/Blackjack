@@ -1,0 +1,19 @@
+
+.find_game {
+  display: flex;
+  justify-content: center; 
+  height: 85vh;
+  align-items: center;     
+  text-align: center;
+}
+
+.find_game_btn{
+  padding: 16px 48px !important;
+  font-size: 1.5rem !important;
+  border-radius: 12px !important;
+  background-color: #1976d2 !important;
+  color: white !important;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.2) !important;
+  text-transform: none !important;
+  font-family: monospace !important;
+}

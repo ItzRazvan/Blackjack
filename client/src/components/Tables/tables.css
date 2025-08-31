@@ -1,0 +1,21 @@
+
+.tables{
+    background-color: red;
+}
+
+
+.table{
+    display:flex;
+    align-items: center;
+}
+
+.table_info{
+    display: flex;
+    flex-direction: row;
+    gap: 4vw;
+}
+
+.join_table{
+    position: absolute;
+    right: 4vw;
+}
