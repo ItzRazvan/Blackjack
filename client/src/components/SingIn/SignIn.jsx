@@ -1,8 +1,9 @@
-import { getAuth, signInWithPopup } from "firebase/auth";
+import { getAuth, signInWithPopup, getAdditionalUserInfo } from "firebase/auth";
 import { GoogleAuthProvider } from "firebase/auth";
 import { useNavigate } from "react-router-dom";
 import GoogleButton from 'react-google-button'
 import firebaseApp from '../../firebase'
+import { addUser } from "../../services/AddUser";
 
 const auth = getAuth(firebaseApp);
 const provider = new GoogleAuthProvider();
@@ -12,7 +13,20 @@ function SignIn(){
 
     const handleGoogleSignIn = async () => {
         try{
-            await signInWithPopup(auth, provider);
+            const result = await signInWithPopup(auth, provider);
+            const additionalInfo = getAdditionalUserInfo(result);
+            const user = result.user;
+            if(additionalInfo.isNewUser){
+                const idToken = await user.getIdToken();
+
+                const userData = {
+                    uid: user.uid,
+                    email: user.email,
+                    username: user.displayName,
+                }
+
+                await addUser(idToken, userData);
+            }
             navigate('/');
         } catch (error) {
             console.log(error.code);
