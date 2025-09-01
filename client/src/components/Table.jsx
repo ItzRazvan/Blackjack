@@ -1,8 +1,20 @@
 import Button from '@mui/material/Button'
 import { joinTable } from '../services/JoinTable'
+import { useState } from 'react'
 
 
 function Table(props){
+    const [error, setError] = useState('');
+
+     const handleJoin = async () => {
+        try {
+            await joinTable(props.id);
+            setError('');
+        } catch (err) {
+            setError('Error');
+        }
+    };
+
     return(
         <>
             <div className="table">
@@ -15,7 +27,15 @@ function Table(props){
                     </h4>
                 </div>
                 <div className="join_table">
-                    <Button variant='contained' className='join_table_btn' onClick={() => {joinTable(props.id)}}>Join</Button>
+                    {error ? (
+                    <Button variant="contained" className="join_table_btn" disabled>
+                        {error}
+                    </Button>
+                    ) : (
+                    <Button variant="contained" className="join_table_btn" onClick={handleJoin}>
+                        Join
+                    </Button>
+                    )}
                 </div>
             </div>
         </>

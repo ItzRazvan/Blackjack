@@ -16,9 +16,9 @@ app.get('/api/availableTables', (req, res) =>{
   res.json(tables);
 });
 
-app.post('/api/joinTable', (req, res) => {
-  const payload = req.body;
-  console.log("Join game: ", payload);
+app.post('/api/joinTable/:id', (req, res) => {
+  const tableId = req.params.id;
+  console.log("Join game:", tableId);
 });
 
 app.listen(PORT, () =>{

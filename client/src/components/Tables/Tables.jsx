@@ -8,7 +8,10 @@ function Tables(){
     useEffect(() => {
         fetch(import.meta.env.VITE_GET_TABLES_ENDPOINT)
         .then(res => res.json())
-        .then(data => setTables(data));
+        .then(data => setTables(data))
+        .catch(error => {
+            setTables([]);
+        })
         
     }, []);
 
