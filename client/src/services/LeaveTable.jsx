@@ -12,6 +12,7 @@ export async function leaveTable(tablename){
                 'Content-Type': 'application/json',
                 'Authorization': `Bearer ${idToken}`,
             },
+            keepalive: true,
         });
         if(!res.ok){
             throw new Error("Failed to leave table");

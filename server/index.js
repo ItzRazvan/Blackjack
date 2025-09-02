@@ -41,9 +41,24 @@ app.post(process.env.JOIN_TABLE_ENDPOINT, async (req, res) => {
       return res.status(401).send("Table doesnt exist");
     }
 
-    const docRef = tableQuery.docs[0];
     try{
-      await docRef.ref.update({
+      const userProfileRef = admin.firestore().collection('users').doc(decodedToken.uid);
+
+      if((await userProfileRef.get()).data()['active table'] != 'null'){
+        return res.status(401);
+      }
+
+      await userProfileRef.update({
+        'active table': tablename,
+      })
+
+    } catch (error) {
+      return res.status(401);
+    }
+
+    const docRef = tableQuery.docs[0].ref;
+    try{
+      await docRef.update({
         players: admin.firestore.FieldValue.increment(1)
       })
     } catch (error) {
@@ -74,6 +89,21 @@ app.post(process.env.LEAVE_TABLE_ENDPOINT, async (req, res) => {
       return res.status(401);
     }
 
+    try {
+      const userProfileRef = admin.firestore().collection('users').doc(decodedToken.uid);
+
+      if((await userProfileRef.get()).data()['active table'] == 'null'){
+        return res.status(401);
+      }
+
+      await userProfileRef.update({
+        'active table': 'null',
+      });
+
+    } catch (error) {
+      return res.status(401);
+    }
+
     const docRef = tableQuery.docs[0].ref;
 
     try {
@@ -83,7 +113,7 @@ app.post(process.env.LEAVE_TABLE_ENDPOINT, async (req, res) => {
 
       const updatedDoc = await docRef.get();
       const players = await updatedDoc.data().players;
-      
+
       if(players == 0){
         await docRef.delete();
       }
@@ -118,6 +148,7 @@ app.post(process.env.ADD_USER_ENDPOINT, async (req, res) => {
       'games won': 0,
       'created at': timestamp,
       'last login': timestamp,
+      'active table': 'null',
     })
 
     res.status(201);

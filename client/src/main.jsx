@@ -9,9 +9,7 @@ import './components/SingIn/signin.css'
 import './components/TableView/tableview.css'
 
 createRoot(document.getElementById('root')).render(
-  <StrictMode>
     <BrowserRouter>
        <App />
     </BrowserRouter>
-  </StrictMode>,
 )

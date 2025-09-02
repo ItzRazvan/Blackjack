@@ -8,16 +8,19 @@ function TableView() {
     const navigate = useNavigate();
 
     useEffect(() => {
-        try{
-            joinTable(data.tablename);
-        } catch (error) {
-            navigate('/tables');
+        const setup = async () => {
+            try{
+                await joinTable(data.tablename);
+            } catch (error) {
+                navigate('/tables');
+            }
         }
+        setup();
 
         return () => {
             leaveTable(data.tablename);
         }
-    }, [data.tablename])
+    }, [data.tablename, navigate])
 
     return (
         <div>
