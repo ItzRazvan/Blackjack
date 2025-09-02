@@ -24,9 +24,79 @@ app.get(process.env.AVAILABLE_TABLES_ENDPOINT, async (req, res) =>{
 });
 
 app.post(process.env.JOIN_TABLE_ENDPOINT, async (req, res) => {
-  const tableId = req.params.id;
-  console.log("Join game:", tableId);
-  res.status(201);
+  const authHeader = req.headers.authorization;
+  if(!authHeader){
+    return res.status(401);
+  }
+  const idToken = authHeader.split(' ')[1];   
+
+  try{
+    const decodedToken = await admin.auth().verifyIdToken(idToken);
+
+    const tablename = req.params.tablename;
+
+    const tableQuery = await admin.firestore().collection('tables').where('name', '==', tablename).get();
+
+    if(tableQuery.empty){
+      return res.status(401).send("Table doesnt exist");
+    }
+
+    const docRef = tableQuery.docs[0];
+    try{
+      await docRef.ref.update({
+        players: admin.firestore.FieldValue.increment(1)
+      })
+    } catch (error) {
+      res.status(401);
+    }
+
+    res.status(201);
+  } catch (error) {
+    res.status(401);
+  }
+});
+
+app.post(process.env.LEAVE_TABLE_ENDPOINT, async (req, res) => {
+  authHeader = req.headers.authorization;
+  if(!authHeader){  
+    return res.status(401);
+  }
+  const idToken = authHeader.split(' ')[1];
+
+  try{
+    const decodedToken = await admin.auth().verifyIdToken(idToken);
+
+    const tablename = req.params.tablename;
+
+    const tableQuery = await admin.firestore().collection("tables").where('name', '==', tablename).get();
+
+    if(tableQuery.empty){
+      return res.status(401);
+    }
+
+    const docRef = tableQuery.docs[0].ref;
+
+    try {
+      await docRef.update({
+        players: admin.firestore.FieldValue.increment(-1),
+      });
+
+      const updatedDoc = await docRef.get();
+      const players = await updatedDoc.data().players;
+      
+      if(players == 0){
+        await docRef.delete();
+      }
+
+    } catch (error) {
+      return res.status(401);
+    }
+
+    res.status(201);
+
+  } catch (error) {
+    res.status(401);
+  }
 });
 
 app.post(process.env.ADD_USER_ENDPOINT, async (req, res) => {

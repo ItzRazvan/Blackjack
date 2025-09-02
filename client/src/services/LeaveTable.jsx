@@ -2,9 +2,9 @@
 
 import { getIdToken } from "./GetIdToken";
 
-export async function joinTable(tablename){
+export async function leaveTable(tablename){
     try {
-        const endpoint = `${import.meta.env.VITE_JOIN_TABLE_ENDPOINT}/${tablename}`;
+        const endpoint = `${import.meta.env.VITE_LEAVE_TABLE_ENDPOINT}/${tablename}`;
         const idToken = await getIdToken();
         const res = await fetch(endpoint , {
             method: 'POST',
@@ -14,7 +14,7 @@ export async function joinTable(tablename){
             },
         });
         if(!res.ok){
-            throw new Error("Failed to join table");
+            throw new Error("Failed to leave table");
         };
 
     } catch (error) {

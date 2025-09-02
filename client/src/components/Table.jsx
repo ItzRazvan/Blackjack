@@ -1,20 +1,9 @@
 import Button from '@mui/material/Button'
-import { joinTable } from '../services/JoinTable'
-import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 
 
 function Table(props){
-    const [error, setError] = useState('');
-
-     const handleJoin = async () => {
-        try {
-            await joinTable(props.id);
-            setError('');
-        } catch (err) {
-            setError('Error');
-        }
-    };
-
+    const navigate = useNavigate();
     return(
         <>
             <div className="table">
@@ -27,15 +16,9 @@ function Table(props){
                     </h4>
                 </div>
                 <div className="join_table">
-                    {error ? (
-                    <Button variant="contained" className="join_table_btn" disabled>
-                        {error}
-                    </Button>
-                    ) : (
-                    <Button variant="contained" className="join_table_btn" onClick={handleJoin}>
+                    <Button variant="contained" className="join_table_btn" onClick={() => {navigate(`/table/${props.name}`)}}>
                         Join
                     </Button>
-                    )}
                 </div>
             </div>
         </>
