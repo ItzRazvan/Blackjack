@@ -5,10 +5,10 @@ import GoogleButton from 'react-google-button'
 import firebaseApp from '../../firebase'
 import { addUser } from "../../services/AddUser";
 
-const auth = getAuth(firebaseApp);
-const provider = new GoogleAuthProvider();
-
 function SignIn(){
+    const auth = getAuth(firebaseApp);
+    const provider = new GoogleAuthProvider();
+
     const navigate = useNavigate();
 
     const handleGoogleSignIn = async () => {
@@ -24,7 +24,6 @@ function SignIn(){
                     email: user.email,
                     username: user.displayName,
                 }
-
                 await addUser(idToken, userData);
             }
             navigate('/');

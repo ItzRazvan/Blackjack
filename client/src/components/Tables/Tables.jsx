@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import NavBar from '../NavBar';
 import Table from '../Table'
+import CreateTable from '../CreateTable';
 
 function Tables(){
     const [tables, setTables] = useState([]);
@@ -12,7 +13,6 @@ function Tables(){
         .catch(error => {
             setTables([]);
         })
-        
     }, []);
 
     return(
@@ -23,6 +23,7 @@ function Tables(){
                     <Table name={table.name} players={table.players} id={table.id} key={table.id}/>
                 ))}
             </div>
+            <CreateTable/>
         </>
     );
 }

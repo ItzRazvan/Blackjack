@@ -6,6 +6,7 @@ import './index.css'
 import './components/Home/home.css'
 import './components/Tables/tables.css'
 import './components/SingIn/signin.css'
+import './components/TableView/tableview.css'
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>

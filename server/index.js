@@ -15,12 +15,11 @@ admin.initializeApp({
   credential: admin.credential.cert(serviceAccount)
 });
 
-const tables = [
-  { id: 1, name: 'Table 1', players: 2 },
-  { id: 2, name: 'Table 2', players: 1 },
-];
-
-app.get(process.env.AVAILABLE_TABLES_ENDPOINT, (req, res) =>{
+app.get(process.env.AVAILABLE_TABLES_ENDPOINT, async (req, res) =>{
+  const tables = (await admin.firestore().collection("tables").get()).docs.map(doc => ({
+    id: doc.id,
+    ...doc.data()
+  }))
   res.json(tables);
 });
 
@@ -52,6 +51,40 @@ app.post(process.env.ADD_USER_ENDPOINT, async (req, res) => {
     })
 
     res.status(201);
+  } catch (error) {
+    res.status(401);
+  }
+});
+
+app.post(process.env.CREATE_TABLE_ENDPOINT, async (req, res) => {
+    const authHeader = req.headers.authorization;
+  if(!authHeader){
+    return res.status(401);
+  }
+  const idToken = authHeader.split(' ')[1];
+
+  const tableName = req.query.tablename;
+  
+  try {
+    const decodedToken = await admin.auth().verifyIdToken(idToken);
+
+    const timestamp = admin.firestore.Timestamp.now();
+
+    const tableQuery = await admin.firestore().collection('tables').where("name", "==", tableName).get();
+
+    if(!tableQuery.empty) {
+      return res.status(401).send("Table already exists");
+    }
+
+    await admin.firestore().collection("tables").add({
+      'name': tableName,
+      'players': 0,
+      'state': 'waiting',
+      'created at': timestamp,
+      'created by': decodedToken.uid,
+    })
+
+    res.status(201).send('Table created');
   } catch (error) {
     res.status(401);
   }
