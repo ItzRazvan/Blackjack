@@ -2,17 +2,26 @@ import { useEffect, useState } from 'react';
 import NavBar from '../NavBar';
 import Table from '../Table'
 import CreateTable from '../CreateTable';
+import { io } from "socket.io-client"
+
+const socket = io("http://127.0.0.1:9999");
 
 function Tables(){
     const [tables, setTables] = useState([]);
 
     useEffect(() => {
-        fetch(import.meta.env.VITE_GET_TABLES_ENDPOINT)
-        .then(res => res.json())
-        .then(data => setTables(data))
-        .catch(error => {
-            setTables([]);
-        })
+        socket.on("tables", (tables) => {
+            setTables(tables);
+        });
+
+        if(socket.connected){
+            socket.emit("requestTables");
+        }
+
+        return () => {
+            socket.off("tables");
+            socket.off("connect");
+        };
     }, []);
 
     return(

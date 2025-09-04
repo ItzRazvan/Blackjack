@@ -15,14 +15,6 @@ admin.initializeApp({
   credential: admin.credential.cert(serviceAccount)
 });
 
-app.get(process.env.AVAILABLE_TABLES_ENDPOINT, async (req, res) =>{
-  const tables = (await admin.firestore().collection("tables").get()).docs.map(doc => ({
-    id: doc.id,
-    ...doc.data()
-  }))
-  res.json(tables);
-});
-
 app.post(process.env.JOIN_TABLE_ENDPOINT, async (req, res) => {
   const authHeader = req.headers.authorization;
   if(!authHeader){
@@ -61,6 +53,8 @@ app.post(process.env.JOIN_TABLE_ENDPOINT, async (req, res) => {
       await docRef.update({
         players: admin.firestore.FieldValue.increment(1)
       })
+
+      await emitTables();
     } catch (error) {
       res.status(401);
     }
@@ -117,6 +111,8 @@ app.post(process.env.LEAVE_TABLE_ENDPOINT, async (req, res) => {
       if(players == 0){
         await docRef.delete();
       }
+
+      await emitTables();
 
     } catch (error) {
       return res.status(401);
@@ -185,12 +181,52 @@ app.post(process.env.CREATE_TABLE_ENDPOINT, async (req, res) => {
       'created by': decodedToken.uid,
     })
 
+    await emitTables();
+
     res.status(201).send('Table created');
   } catch (error) {
     res.status(401);
   }
 });
 
-app.listen(PORT, () =>{
-  console.log("App listening to 9999");
+const http = require("http");
+const server = http.createServer(app);
+
+const { Server } = require("socket.io");
+const { emit } = require('process');
+const io = new Server(server, {
+  cors: {
+    origin: "*", 
+  }
+})
+
+async function emitTables(socket = null) {
+  const tables = (await admin.firestore().collection("tables").get()).docs.map(doc => ({
+    id: doc.id,
+    ...doc.data()
+  }));
+
+  if (socket) {
+    socket.emit("tables", tables);
+  } else {
+    io.to("tables room").emit("tables", tables);
+  }
+}
+
+io.on("connection", async (socket) => {
+  socket.join("tables room");
+
+  await emitTables(socket);
+  
+  socket.on("requestTables", async () => {
+    await emitTables(socket);
+  })
+
+  socket.on("disconnect", async () => {
+    socket.leave("tables room");
+  })
+});
+
+server.listen(PORT, () =>{
+  console.log(`App listening to ${PORT}`);
 });
