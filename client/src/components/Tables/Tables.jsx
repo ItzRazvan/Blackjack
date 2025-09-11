@@ -2,27 +2,38 @@ import { useEffect, useState } from 'react';
 import NavBar from '../NavBar';
 import Table from '../Table'
 import CreateTable from '../CreateTable';
-import { io } from "socket.io-client"
-
-const socket = io("http://127.0.0.1:9999");
+import { socket } from '../../services/Socket'
 
 function Tables(){
     const [tables, setTables] = useState([]);
 
     useEffect(() => {
-        socket.on("tables", (tables) => {
-            setTables(tables);
+        const handleConnect = () => {
+            socket.emit("joinTablesRoom", () => {
+                socket.emit("requestTables");
+            });
+        };
+
+        socket.on("tables", (receivedTables) => {
+            setTables(receivedTables);
         });
 
-        if(socket.connected){
-            socket.emit("requestTables");
+        socket.on("connect", handleConnect);
+        
+        if (socket.connected) {
+            handleConnect();
+        } else {
+            socket.connect();
         }
-
+        
         return () => {
+            socket.emit("leaveTablesRoom");
+
+            socket.off("connect", handleConnect);
             socket.off("tables");
-            socket.off("connect");
         };
     }, []);
+
 
     return(
         <>

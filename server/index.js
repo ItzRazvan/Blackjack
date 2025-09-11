@@ -193,12 +193,29 @@ const http = require("http");
 const server = http.createServer(app);
 
 const { Server } = require("socket.io");
-const { emit } = require('process');
 const io = new Server(server, {
   cors: {
     origin: "*", 
   }
 })
+
+io.use(async(socket, next) => {
+  const token = socket.handshake.auth.token;
+
+  if(!token){
+    return next(new Error("Authentication failed: No Token provided"));
+  }
+
+  try {
+    decodedToken = await admin.auth().verifyIdToken(token);
+
+    socket.data.user = decodedToken;
+    next();
+  } catch (error) {
+    return next(new Error("Authenticaion error: Invalid token"));
+  }
+})
+
 
 async function emitTables(socket = null) {
   const tables = (await admin.firestore().collection("tables").get()).docs.map(doc => ({
@@ -214,17 +231,20 @@ async function emitTables(socket = null) {
 }
 
 io.on("connection", async (socket) => {
-  socket.join("tables room");
 
-  await emitTables(socket);
+  socket.on("joinTablesRoom", async () => {
+      await socket.join("tables room");
+      await emitTables(socket);
+  });
+
   
   socket.on("requestTables", async () => {
     await emitTables(socket);
   })
 
-  socket.on("disconnect", async () => {
-    socket.leave("tables room");
-  })
+  socket.on("leaveTablesRoom", async () => {
+    await socket.leave("tables room");
+  });
 });
 
 server.listen(PORT, () =>{
