@@ -27,8 +27,6 @@ function Tables(){
         }
         
         return () => {
-            socket.emit("leaveTablesRoom");
-
             socket.off("connect", handleConnect);
             socket.off("tables");
         };

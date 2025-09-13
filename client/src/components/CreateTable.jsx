@@ -4,15 +4,31 @@ import { useForm } from "react-hook-form"
 import { createTable } from "../services/CreateTable"
 import { getIdToken }  from '../services/GetIdToken';
 import { useNavigate } from 'react-router-dom';
+import { socket } from '../services/Socket'
+import { useEffect } from 'react';
+import { useState } from 'react';
 
 function CreateTable() {
     const navigate = useNavigate();
+    const [tablename, setTablename] = useState();
 
     const {register, handleSubmit} = useForm();
     const onSubmit = async (data) => {
-        await createTable(await getIdToken(), data.tablename);
-        navigate(`/table/${data.tablename}`);
+        socket.emit("createTable", {tablename: data.tablename});
+        setTablename(data.tablename);
     }
+
+    useEffect(() => {
+        socket.connect();
+
+        socket.on("tableReady", () => {
+            navigate(`/table/${tablename}`);
+        })
+
+        return () => {
+            socket.off("tableReady");
+        }
+    })
 
     return(
         <Popup trigger={ <Button variant='contained'>Create Table</Button>} position="right center">

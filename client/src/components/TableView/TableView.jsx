@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom"
 import { joinTable } from "../../services/JoinTable";
 import { leaveTable } from "../../services/LeaveTable"
+import { socket } from "../../services/Socket";
 
 function TableView() {
     const data = useParams();
@@ -10,7 +11,8 @@ function TableView() {
     useEffect(() => {
         const setup = async () => {
             try{
-                await joinTable(data.tablename);
+                socket.connect();
+                socket.emit("joinTable", {tablename: data.tablename});
             } catch (error) {
                 navigate('/tables');
             }
@@ -18,7 +20,7 @@ function TableView() {
         setup();
 
         return () => {
-            leaveTable(data.tablename);
+            socket.emit("leaveTable", {tablename: data.tablename});
         }
     }, [data.tablename, navigate])
 

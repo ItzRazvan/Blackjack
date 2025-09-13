@@ -15,29 +15,21 @@ admin.initializeApp({
   credential: admin.credential.cert(serviceAccount)
 });
 
-app.post(process.env.JOIN_TABLE_ENDPOINT, async (req, res) => {
-  const authHeader = req.headers.authorization;
-  if(!authHeader){
-    return res.status(401);
-  }
-  const idToken = authHeader.split(' ')[1];   
-
+async function joinTable(tablename) {
   try{
-    const decodedToken = await admin.auth().verifyIdToken(idToken);
-
-    const tablename = req.params.tablename;
 
     const tableQuery = await admin.firestore().collection('tables').where('name', '==', tablename).get();
 
     if(tableQuery.empty){
-      return res.status(401).send("Table doesnt exist");
+      console.log("table doesnt exit");
+      throw new Error("table doestn exist");
     }
 
     try{
       const userProfileRef = admin.firestore().collection('users').doc(decodedToken.uid);
 
       if((await userProfileRef.get()).data()['active table'] != 'null'){
-        return res.status(401);
+        throw error
       }
 
       await userProfileRef.update({
@@ -45,7 +37,7 @@ app.post(process.env.JOIN_TABLE_ENDPOINT, async (req, res) => {
       })
 
     } catch (error) {
-      return res.status(401);
+      throw error
     }
 
     const docRef = tableQuery.docs[0].ref;
@@ -56,38 +48,27 @@ app.post(process.env.JOIN_TABLE_ENDPOINT, async (req, res) => {
 
       await emitTables();
     } catch (error) {
-      res.status(401);
+      throw error
     }
-
-    res.status(201);
   } catch (error) {
-    res.status(401);
+    throw error
   }
-});
+};
 
-app.post(process.env.LEAVE_TABLE_ENDPOINT, async (req, res) => {
-  authHeader = req.headers.authorization;
-  if(!authHeader){  
-    return res.status(401);
-  }
-  const idToken = authHeader.split(' ')[1];
-
+async function leaveTable(tablename){ 
   try{
-    const decodedToken = await admin.auth().verifyIdToken(idToken);
-
-    const tablename = req.params.tablename;
 
     const tableQuery = await admin.firestore().collection("tables").where('name', '==', tablename).get();
 
     if(tableQuery.empty){
-      return res.status(401);
+      throw new Error("table doesnt exist")
     }
 
     try {
       const userProfileRef = admin.firestore().collection('users').doc(decodedToken.uid);
 
       if((await userProfileRef.get()).data()['active table'] == 'null'){
-        return res.status(401);
+        throw new Error("User doesent exist");
       }
 
       await userProfileRef.update({
@@ -95,7 +76,7 @@ app.post(process.env.LEAVE_TABLE_ENDPOINT, async (req, res) => {
       });
 
     } catch (error) {
-      return res.status(401);
+      throw error
     }
 
     const docRef = tableQuery.docs[0].ref;
@@ -115,15 +96,13 @@ app.post(process.env.LEAVE_TABLE_ENDPOINT, async (req, res) => {
       await emitTables();
 
     } catch (error) {
-      return res.status(401);
+      throw error
     }
 
-    res.status(201);
-
   } catch (error) {
-    res.status(401);
+    throw error
   }
-});
+};
 
 app.post(process.env.ADD_USER_ENDPOINT, async (req, res) => {
   const authHeader = req.headers.authorization;
@@ -153,24 +132,15 @@ app.post(process.env.ADD_USER_ENDPOINT, async (req, res) => {
   }
 });
 
-app.post(process.env.CREATE_TABLE_ENDPOINT, async (req, res) => {
-    const authHeader = req.headers.authorization;
-  if(!authHeader){
-    return res.status(401);
-  }
-  const idToken = authHeader.split(' ')[1];
-
-  const tableName = req.query.tablename;
-  
+async function createTable(tableName){
   try {
-    const decodedToken = await admin.auth().verifyIdToken(idToken);
-
+   
     const timestamp = admin.firestore.Timestamp.now();
 
     const tableQuery = await admin.firestore().collection('tables').where("name", "==", tableName).get();
 
     if(!tableQuery.empty) {
-      return res.status(401).send("Table already exists");
+      throw new Error("Table already exists")
     }
 
     await admin.firestore().collection("tables").add({
@@ -180,14 +150,12 @@ app.post(process.env.CREATE_TABLE_ENDPOINT, async (req, res) => {
       'created at': timestamp,
       'created by': decodedToken.uid,
     })
-
-    await emitTables();
-
-    res.status(201).send('Table created');
+    await emitTables()
   } catch (error) {
-    res.status(401);
+      throw error
   }
-});
+};
+
 
 const http = require("http");
 const server = http.createServer(app);
@@ -233,18 +201,50 @@ async function emitTables(socket = null) {
 io.on("connection", async (socket) => {
 
   socket.on("joinTablesRoom", async () => {
-      await socket.join("tables room");
-      await emitTables(socket);
+      try{
+        await socket.join("tables room");
+        await emitTables(socket);
+      } catch(error){
+        socket.emit("error", error.message);
+      }
   });
 
   
   socket.on("requestTables", async () => {
-    await emitTables(socket);
+    try{
+      await emitTables(socket);
+    } catch(error){
+      socket.emit("error". error.message);
+    }
   })
 
-  socket.on("leaveTablesRoom", async () => {
-    await socket.leave("tables room");
+
+  socket.on("createTable", async (data) => {
+    try{
+      await createTable(data.tablename);
+      socket.emit("tableReady");
+    } catch (error) {
+      socket.emit("error", error.message);
+    }
   });
+
+  socket.on("joinTable", async (data) => {
+    try{
+      await joinTable(data.tablename);
+      socket.join(data.tablename);
+    } catch (error) {
+      socket.emit("error" ,error.message);
+    }
+  });
+
+  socket.on("leaveTable", async(data) => {
+    try{
+      await leaveTable(data.tablename);
+      socket.leave(data.tablename);
+    } catch(error){
+      socket.emit("error", error.message);
+    }
+  })
 });
 
 server.listen(PORT, () =>{
