@@ -1,8 +1,6 @@
 import Button from '@mui/material/Button';
 import Popup from 'reactjs-popup';
 import { useForm } from "react-hook-form"
-import { createTable } from "../services/CreateTable"
-import { getIdToken }  from '../services/GetIdToken';
 import { useNavigate } from 'react-router-dom';
 import { socket } from '../services/Socket'
 import { useEffect } from 'react';

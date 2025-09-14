@@ -1,4 +1,4 @@
-import { getAuth, signInWithPopup, getAdditionalUserInfo } from "firebase/auth"; // No longer need redirect functions
+import { getAuth, signInWithPopup, getAdditionalUserInfo } from "firebase/auth"; 
 import { GoogleAuthProvider } from "firebase/auth";
 import { useNavigate } from "react-router-dom";
 import GoogleButton from 'react-google-button';

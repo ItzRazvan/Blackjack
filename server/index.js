@@ -15,18 +15,19 @@ admin.initializeApp({
   credential: admin.credential.cert(serviceAccount)
 });
 
-async function joinTable(tablename) {
+const activeTables = new Map();
+
+async function joinTable(tablename, uid) {
   try{
 
     const tableQuery = await admin.firestore().collection('tables').where('name', '==', tablename).get();
 
     if(tableQuery.empty){
-      console.log("table doesnt exit");
-      throw new Error("table doestn exist");
+      throw new Error("Table doesnt exist");
     }
 
     try{
-      const userProfileRef = admin.firestore().collection('users').doc(decodedToken.uid);
+      const userProfileRef = admin.firestore().collection('users').doc(uid);
 
       if((await userProfileRef.get()).data()['active table'] != 'null'){
         throw error
@@ -43,7 +44,8 @@ async function joinTable(tablename) {
     const docRef = tableQuery.docs[0].ref;
     try{
       await docRef.update({
-        players: admin.firestore.FieldValue.increment(1)
+        'players': admin.firestore.FieldValue.increment(1),
+        'players uid': admin.firestore.FieldValue.arrayUnion(uid)
       })
 
       await emitTables();
@@ -55,7 +57,7 @@ async function joinTable(tablename) {
   }
 };
 
-async function leaveTable(tablename){ 
+async function leaveTable(tablename, uid){ 
   try{
 
     const tableQuery = await admin.firestore().collection("tables").where('name', '==', tablename).get();
@@ -65,7 +67,7 @@ async function leaveTable(tablename){
     }
 
     try {
-      const userProfileRef = admin.firestore().collection('users').doc(decodedToken.uid);
+      const userProfileRef = admin.firestore().collection('users').doc(uid);
 
       if((await userProfileRef.get()).data()['active table'] == 'null'){
         throw new Error("User doesent exist");
@@ -83,13 +85,15 @@ async function leaveTable(tablename){
 
     try {
       await docRef.update({
-        players: admin.firestore.FieldValue.increment(-1),
+        'players': admin.firestore.FieldValue.increment(-1),
+        'players uid': admin.firestore.FieldValue.arrayRemove(uid)
       });
 
       const updatedDoc = await docRef.get();
       const players = await updatedDoc.data().players;
 
-      if(players == 0){
+      if(players <= 0){
+        activeTables.delete(tablename);
         await docRef.delete();
       }
 
@@ -132,29 +136,114 @@ app.post(process.env.ADD_USER_ENDPOINT, async (req, res) => {
   }
 });
 
-async function createTable(tableName){
+async function createTable(tablename, uid){
   try {
    
     const timestamp = admin.firestore.Timestamp.now();
 
-    const tableQuery = await admin.firestore().collection('tables').where("name", "==", tableName).get();
+    const tableQuery = await admin.firestore().collection('tables').where("name", "==", tablename).get();
 
     if(!tableQuery.empty) {
       throw new Error("Table already exists")
     }
 
     await admin.firestore().collection("tables").add({
-      'name': tableName,
+      'name': tablename,
       'players': 0,
+      'players uid': [],
       'state': 'waiting',
       'created at': timestamp,
-      'created by': decodedToken.uid,
+      'created by': uid,
     })
+
     await emitTables()
   } catch (error) {
       throw error
   }
 };
+
+function createDeck(){
+  const cards = ["Hearts", "Diamonds", "Clubs", "Spades"];
+  const values = [
+    "A", "K", "Q", "J",
+    "2", "3", "4", "5", "6", "7", "8", "9", "10",
+  ]
+  let deck = [];
+
+  for(let card in cards){
+    for(let value in values) {
+      deck.push(values[value] + " " + cards[card]);
+    }
+  }
+  for(let i = deck.length - 1; i > 0; i--){
+    let j = Math.floor(Math.random() * (i + 1));
+    [deck[i], deck[j]] = [deck[j], deck[i]];
+  }
+  return deck
+}
+
+async function getPlayers(tableRef){
+  const players = new Map();
+  try{
+    const playersUids = tableRef.data()['players uid']
+    for (const uid of playersUids){
+      const player = await admin.firestore().collection('users').doc(uid).get();
+
+      players.set(uid, {
+        name: player.data()['username'],
+        balance: player.data()['balance'],
+        hand: [],
+        bet: 0,
+        hasStood: false,
+      })
+    }
+    return players
+  } catch (error){
+    throw error
+  }
+}
+
+async function createGameState(tablename, tableRef) {
+  activeTables.set(tablename, {
+    name: tablename,
+    players: await getPlayers(tableRef),
+    deck: createDeck(),
+    dealer: {
+      hand: [],
+      hasStood: false,
+    }
+  })
+  console.log(activeTables);
+}
+
+async function startGame(tablename, uid){
+  try { 
+    const tableQuery = await admin.firestore().collection("tables").where("name", "==", tablename).get();
+
+    if(tableQuery.empty){
+      throw new Error("Table doesn't exist");
+    }
+
+    const tableRef = tableQuery.docs[0];
+    if(uid != tableRef.data()['created by']){
+       throw new Error("Only the table creator can start the game.");
+    }
+
+    if(tableRef.data()['state'] != 'waiting'){
+      throw new Error("Table isn't waiting");
+    }
+
+    await createGameState(tablename, tableRef);
+
+    await tableRef.ref.update({
+      state: 'started'
+    });
+
+
+  } catch (error) {
+    throw error
+  }
+}
 
 
 const http = require("http");
@@ -186,7 +275,7 @@ io.use(async(socket, next) => {
 
 
 async function emitTables(socket = null) {
-  const tables = (await admin.firestore().collection("tables").get()).docs.map(doc => ({
+  const tables = (await admin.firestore().collection("tables").where("state", "==", "waiting").get()).docs.map(doc => ({
     id: doc.id,
     ...doc.data()
   }));
@@ -196,6 +285,23 @@ async function emitTables(socket = null) {
   } else {
     io.to("tables room").emit("tables", tables);
   }
+}
+
+async function getPlayerName(tablename){
+      let playersArray = [];
+      const tableQuery = await admin.firestore().collection('tables').where('name', '==', tablename).get();
+      if (!tableQuery.empty) {
+        const tableRef = tableQuery.docs[0];
+        const playersUids = tableRef.data()['players uid']
+          for (const uid of playersUids){
+            const player = await admin.firestore().collection('users').doc(uid).get();
+            playersArray.push({
+              username: player.data()['username'],
+              uid: uid,
+          });
+        }
+      }
+      return playersArray
 }
 
 io.on("connection", async (socket) => {
@@ -221,7 +327,7 @@ io.on("connection", async (socket) => {
 
   socket.on("createTable", async (data) => {
     try{
-      await createTable(data.tablename);
+      await createTable(data.tablename, socket.data.user.uid);
       socket.emit("tableReady");
     } catch (error) {
       socket.emit("error", error.message);
@@ -230,8 +336,9 @@ io.on("connection", async (socket) => {
 
   socket.on("joinTable", async (data) => {
     try{
-      await joinTable(data.tablename);
+      await joinTable(data.tablename, socket.data.user.uid);
       socket.join(data.tablename);
+      io.to(data.tablename).emit("players", { players: await getPlayerName(data.tablename) });
     } catch (error) {
       socket.emit("error" ,error.message);
     }
@@ -239,10 +346,20 @@ io.on("connection", async (socket) => {
 
   socket.on("leaveTable", async(data) => {
     try{
-      await leaveTable(data.tablename);
+      await leaveTable(data.tablename, socket.data.user.uid);
       socket.leave(data.tablename);
+      io.to(data.tablename).emit("players", { players: await getPlayerName(data.tablename) });
     } catch(error){
       socket.emit("error", error.message);
+    }
+  })
+
+  socket.on("startGame", async (data) => {
+    try{
+      await startGame(data.tablename, socket.data.user.uid);
+      io.to(data.tablename).emit("start");
+    } catch(error) {
+      socket.emit('error', error.message);
     }
   })
 });
