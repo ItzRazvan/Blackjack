@@ -48,7 +48,7 @@ async function joinTable(tablename, uid) {
         'players uid': admin.firestore.FieldValue.arrayUnion(uid)
       })
 
-      await emitTables();
+      emitTables();
     } catch (error) {
       throw error
     }
@@ -97,7 +97,7 @@ async function leaveTable(tablename, uid){
         await docRef.delete();
       }
 
-      await emitTables();
+      emitTables();
 
     } catch (error) {
       throw error
@@ -136,6 +136,27 @@ app.post(process.env.ADD_USER_ENDPOINT, async (req, res) => {
   }
 });
 
+app.post(process.env.UPDATE_LAST_LOGIN_ENDPOINT, async (req, res) => {
+  const authHeader = req.headers.authorization;
+  if(!authHeader){
+    return res.status(401);
+  }
+  const idToken = authHeader.split(' ')[1];    
+  try{
+    const decodedToken = await admin.auth().verifyIdToken(idToken);
+
+    const timestamp = admin.firestore.Timestamp.now();
+
+    await admin.firestore().collection('users').doc(decodedToken.uid).set({
+      'last login': timestamp,
+    });
+
+    res.status(201);
+  } catch (error){
+    res.status(401);
+  }
+})
+
 async function createTable(tablename, uid){
   try {
    
@@ -156,7 +177,7 @@ async function createTable(tablename, uid){
       'created by': uid,
     })
 
-    await emitTables()
+    emitTables()
   } catch (error) {
       throw error
   }
@@ -190,6 +211,7 @@ async function getPlayers(tableRef){
       const player = await admin.firestore().collection('users').doc(uid).get();
 
       players.set(uid, {
+        uid: uid,
         name: player.data()['username'],
         balance: player.data()['balance'],
         hand: [],
@@ -204,14 +226,18 @@ async function getPlayers(tableRef){
 }
 
 async function createGameState(tablename, tableRef) {
+  const playersMap = await getPlayers(tableRef);
+  const turnOrder = Array.from(playersMap.keys());
   activeTables.set(tablename, {
     name: tablename,
-    players: await getPlayers(tableRef),
+    players: playersMap,
     deck: createDeck(),
     dealer: {
       hand: [],
       hasStood: false,
-    }
+    },
+    turnOrder: turnOrder,
+    currentTurnIndex: 0,
   })
   console.log(activeTables);
 }
@@ -239,7 +265,7 @@ async function startGame(tablename, uid){
       state: 'started'
     });
 
-
+    emitTables();
   } catch (error) {
     throw error
   }
@@ -288,20 +314,17 @@ async function emitTables(socket = null) {
 }
 
 async function getPlayerName(tablename){
-      let playersArray = [];
-      const tableQuery = await admin.firestore().collection('tables').where('name', '==', tablename).get();
-      if (!tableQuery.empty) {
-        const tableRef = tableQuery.docs[0];
-        const playersUids = tableRef.data()['players uid']
-          for (const uid of playersUids){
-            const player = await admin.firestore().collection('users').doc(uid).get();
-            playersArray.push({
-              username: player.data()['username'],
-              uid: uid,
-          });
-        }
-      }
-      return playersArray
+  const tableQuery = await admin.firestore().collection('tables').where('name', '==', tablename).get();
+  if (tableQuery.empty) return [];
+  const tableRef = tableQuery.docs[0];
+  const playersUids = tableRef.data()['players uid'];
+  if (!playersUids.length) return [];
+  const userRefs = playersUids.map(uid => admin.firestore().collection('users').doc(uid));
+  const userDocs = await admin.firestore().getAll(...userRefs);
+  return userDocs.map((doc, idx) => ({
+    username: doc.data()?.username || '',
+    uid: playersUids[idx],
+  }));
 }
 
 io.on("connection", async (socket) => {
@@ -357,12 +380,310 @@ io.on("connection", async (socket) => {
   socket.on("startGame", async (data) => {
     try{
       await startGame(data.tablename, socket.data.user.uid);
-      io.to(data.tablename).emit("start");
+      io.to(data.tablename).emit("bettingPhaseStart");
     } catch(error) {
       socket.emit('error', error.message);
     }
   })
+
+  socket.on("placeBet", async (data) => {
+    try {
+      const tableState = activeTables.get(data.tablename);
+      if (!tableState || !tableState.players || !tableState.players.has(socket.data.user.uid)) {
+        socket.emit("error", "Table or player not found.");
+        return;
+      }
+      const player = tableState.players.get(socket.data.user.uid);
+      if (typeof data.bet !== "number" || data.bet <= 0) {
+        socket.emit("error", "Invalid bet amount.");
+        return;
+      }
+      if(player.bet != 0){
+        socket.emit("error", "Bet already placed.");
+        return;
+      }
+      if (data.bet > player.balance) {
+        socket.emit("notEnoughMoney");
+        return;
+      }
+      await updatePlayerBalance(socket.data.user.uid, data.bet);
+      player.balance -= data.bet;
+      player.bet = data.bet;
+      tableState.players.set(socket.data.user.uid, player);
+      activeTables.set(data.tablename, tableState);
+      socket.emit("betPlaced");
+
+      const allBetsPlaced = Array.from(tableState.players.values()).every(player => player.bet > 0);
+      if(allBetsPlaced){
+        dealCards(data.tablename);
+        const cards = getCards(data.tablename, false);
+        io.to(data.tablename).emit("dealCards", cards);
+
+        io.to(data.tablename).emit("playerTurn", {uid: tableState.turnOrder[tableState.currentTurnIndex]})
+      }
+    } catch (error) {
+      socket.emit("error", error.message);
+    }
+  });
+  
+
+    socket.on("hit", async (data) => {
+      const tableState = activeTables.get(data.tablename);
+      if(!tableState) return;
+      const currentUid = tableState.turnOrder[tableState.currentTurnIndex];
+      if(socket.data.user.uid !== currentUid) return;
+
+      const player = tableState.players.get(currentUid);
+
+      player.hand.push(tableState.deck.pop());
+
+      if(handSum(player.hand) > 21) {
+          player.hasStood = true;
+
+          tableState.players.set(currentUid, player);
+          activeTables.set(data.tablename, tableState); 
+
+          const cards = getCards(data.tablename, false);
+          io.to(data.tablename).emit("updateCards", cards);
+
+          await nextPlayerTurn(data.tablename);
+       }else{
+
+          const cards = getCards(data.tablename, false);
+          io.to(data.tablename).emit("updateCards", cards);
+       }
+      });
+
+    socket.on('stand', async (data) => {
+      const tableState = activeTables.get(data.tablename);
+      if(!tableState) return;
+      const currentUid = tableState.turnOrder[tableState.currentTurnIndex];
+      if(socket.data.user.uid !== currentUid) return;
+
+      const player = tableState.players.get(currentUid);
+      player.hasStood = true;
+
+      tableState.players.set(currentUid, player);
+      activeTables.set(data.tablename, tableState); 
+
+      await nextPlayerTurn(data.tablename);
+    })
 });
+
+function getWinners(tablename){
+  const tableState = activeTables.get(tablename);
+  const players = tableState.players.values();
+  const dealer = tableState.dealer;
+  let winners = [];
+
+  let bestHand = 0;
+  for(const player of players){
+    const sum = handSum(player.hand);
+    if(sum <= 21 && sum > bestHand){
+      bestHand = sum;
+      winners = [];
+      winners.push({uid: player.uid, name: player.name});
+    }else if(sum == bestHand){
+      winners.push({uid: player.uid, name: player.name});
+    }
+  }
+
+  if(winners.length < 1){
+    winners.push({uid: dealer.uid, name: dealer.name});
+    return winners;
+  }
+
+  let dealerSum = handSum(dealer.hand);
+  if(dealerSum <= 21 && dealerSum > bestHand){
+    bestHand = dealerSum;
+    winners = [];
+    winners.push({uid: dealer.uid, name: dealer.name});
+  }else if(dealerSum == bestHand){
+    winners.push({uid: dealer.uid, name: dealer.name});
+  }
+
+  return winners;
+}
+
+async function giveortakeMoney(tablename, winners){
+  const tableState = activeTables.get(tablename);
+  const playerNumber = tableState.players.size;
+  const moneyPerPlayer = Math.round((playerNumber * 100) / winners.length);
+
+  for(const player of tableState.players.values()){
+    const isWinner = winners.some(winner => winner.uid === player.uid);
+    if(!isWinner){
+    console.log(player);
+      const playerRef = admin.firestore().collection("users").doc(player.uid);
+      await playerRef.update({
+        balance: admin.firestore.FieldValue.increment(-100),
+        'games played': admin.firestore.FieldValue.increment(1),
+      });
+    }
+  }
+
+  for(const winner of winners){
+    if(winner.uid != 'dealer'){
+      const playerRef = admin.firestore().collection("users").doc(winner.uid);
+      await playerRef.update({
+        balance: admin.firestore.FieldValue.increment(moneyPerPlayer),
+        'games won': admin.firestore.FieldValue.increment(1),
+        'games played': admin.firestore.FieldValue.increment(1),
+    })
+    }
+  }
+}
+
+async function endGame(tablename){
+  const winners = getWinners(tablename);
+  io.to(tablename).emit("endGame", winners);
+
+  await giveortakeMoney(tablename, winners);
+
+  await sleep(6000);
+
+  io.to(tablename).emit("gameEnded");
+
+  const room = io.sockets.adapter.rooms.get(tablename);
+  if (room) {
+    for (const socketId of room) {
+      const socket = io.sockets.sockets.get(socketId);
+      if (socket) {
+        socket.leave(tablename);
+      }
+    }
+  }
+  activeTables.delete(tablename);
+}
+
+function handSum(hand){
+  let sum = 0;
+  let A = 0;
+  for(const card of hand){
+    const cardNum = card[0];
+    if(cardNum === 'A'){
+      A++;
+      sum += 11;
+    }else if(cardNum === "J" || cardNum === "Q" || cardNum === "K"){
+      sum += 10;
+    }else{
+      sum += parseInt(cardNum);
+    }
+  }
+
+  while(sum > 21 && A > 0){
+    sum -= 10;
+    A--;
+  }
+  return sum;
+}
+
+async function nextPlayerTurn(tablename){
+  const tableState = activeTables.get(tablename);
+  if(!tableState) return;
+
+  let nextIndex = tableState.currentTurnIndex + 1;
+  if (nextIndex < tableState.turnOrder.length) {
+    tableState.currentTurnIndex = nextIndex;
+    activeTables.set(tablename, tableState);
+    const nextUid = tableState.turnOrder[nextIndex];
+    io.to(tablename).emit("playerTurn", { uid: nextUid });
+  } else {
+    io.to(tablename).emit("allPlayersStood");
+    await dealDealer(tablename);
+  }
+}
+
+function sleep(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+async function dealDealer(tablename){
+    const tableState = activeTables.get(tablename);
+    const dealerHand = tableState.dealer.hand;
+
+    io.to(tablename).emit("updateCards", getCards(tablename, true));
+
+    await sleep(1500);
+
+    while(handSum(dealerHand) < 17){
+      dealerHand.push(tableState.deck.pop());
+      activeTables.set(tablename, tableState); 
+
+      io.to(tablename).emit("updateCards", getCards(tablename, true));
+
+      await sleep(1500);
+    }
+
+    tableState.dealer.hasStood = true;
+    activeTables.set(tablename, tableState); 
+
+    endGame(tablename);
+}
+
+function getCards(tablename, allPlayersStood){
+  const tableState = activeTables.get(tablename);
+
+  let cards = [];
+
+  for(const [uid, player] of tableState.players.entries()){
+    cards.push({
+      uid: uid,
+      name: player.name,
+      hand: player.hand
+    });
+  }
+
+  let dealerHand = [];
+  if(!allPlayersStood){
+    if (tableState.dealer.hand.length > 0) {
+      dealerHand.push(tableState.dealer.hand[0]);
+      dealerHand.push("X");
+    }
+  }else{
+    for(const card of tableState.dealer.hand){
+      dealerHand.push(card);
+    }
+  }
+  cards.push({
+    uid: "dealer",
+    name: "dealer",
+    hand: dealerHand,
+  });
+
+  return cards;
+}
+
+function dealCards(tablename){
+  const tableState = activeTables.get(tablename);
+
+  for(const player of tableState.players.values()){
+    player.hand = [
+      tableState.deck.pop(),
+      tableState.deck.pop()
+    ];
+  }
+
+  tableState.dealer.hand = [
+    tableState.deck.pop(),
+    tableState.deck.pop()
+  ];
+
+  activeTables.set(tablename, tableState);
+
+  console.log(tableState.players.values());
+}
+
+async function updatePlayerBalance(uid, bet){
+  try{
+    const playerRef = admin.firestore().collection("users").doc(uid);
+    await playerRef.update({
+      'balance': admin.firestore.FieldValue.increment(bet * (-1)),
+    });
+  } catch (error){
+    return error;
+  }
+}
 
 server.listen(PORT, () =>{
   console.log(`App listening to ${PORT}`);
