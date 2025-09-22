@@ -18,44 +18,32 @@ admin.initializeApp({
 const activeTables = new Map();
 
 async function joinTable(tablename, uid) {
-  try{
+  const db = admin.firestore();
 
-    const tableQuery = await admin.firestore().collection('tables').where('name', '==', tablename).get();
+  await db.runTransaction(async (t) => {
+    const userRef = db.collection('users').doc(uid);
+    const tableQuery = await t.get(db.collection('tables').where('name', '==', tablename).limit(1));
 
-    if(tableQuery.empty){
-      throw new Error("Table doesnt exist");
+    if (tableQuery.empty) {
+      throw new Error("Table doesn't exist");
     }
 
-    try{
-      const userProfileRef = admin.firestore().collection('users').doc(uid);
+    const tableRef = tableQuery.docs[0].ref;
+    const userSnap = await t.get(userRef);
 
-      if((await userProfileRef.get()).data()['active table'] != 'null'){
-        throw error
-      }
-
-      await userProfileRef.update({
-        'active table': tablename,
-      })
-
-    } catch (error) {
-      throw error
+    if (userSnap.data()['active table'] !== 'null') {
+      throw new Error("User already in a table");
     }
 
-    const docRef = tableQuery.docs[0].ref;
-    try{
-      await docRef.update({
-        'players': admin.firestore.FieldValue.increment(1),
-        'players uid': admin.firestore.FieldValue.arrayUnion(uid)
-      })
+    t.update(userRef, { 'active table': tablename });
+    t.update(tableRef, {
+      players: admin.firestore.FieldValue.increment(1),
+      'players uid': admin.firestore.FieldValue.arrayUnion(uid)
+    });
+  });
+  emitTables();
+}
 
-      emitTables();
-    } catch (error) {
-      throw error
-    }
-  } catch (error) {
-    throw error
-  }
-};
 
 async function leaveTable(tablename, uid){ 
   try{
