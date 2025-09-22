@@ -470,36 +470,38 @@ io.on("connection", async (socket) => {
     })
 });
 
-function getWinners(tablename){
+function getWinners(tablename, allBusted){
   const tableState = activeTables.get(tablename);
   const players = tableState.players.values();
   const dealer = tableState.dealer;
   let winners = [];
 
   let bestHand = 0;
-  for(const player of players){
-    const sum = handSum(player.hand);
-    if(sum <= 21 && sum > bestHand){
-      bestHand = sum;
-      winners = [];
-      winners.push({uid: player.uid, name: player.name});
-    }else if(sum == bestHand){
-      winners.push({uid: player.uid, name: player.name});
+  if(!allBusted){
+    for(const player of players){
+      const sum = handSum(player.hand);
+      if(sum <= 21 && sum > bestHand){
+        bestHand = sum;
+        winners = [];
+        winners.push({uid: player.uid, name: player.name});
+      }else if(sum == bestHand){
+        winners.push({uid: player.uid, name: player.name});
+      }
     }
   }
 
-  if(winners.length < 1){
-    winners.push({uid: dealer.uid, name: dealer.name});
+  if(allBusted){
+    winners.push({uid: 'dealer', name: 'dealer'});
     return winners;
-  }
-
-  let dealerSum = handSum(dealer.hand);
-  if(dealerSum <= 21 && dealerSum > bestHand){
-    bestHand = dealerSum;
-    winners = [];
-    winners.push({uid: dealer.uid, name: dealer.name});
-  }else if(dealerSum == bestHand){
-    winners.push({uid: dealer.uid, name: dealer.name});
+  }else{
+    let dealerSum = handSum(dealer.hand);
+    if(dealerSum <= 21 && dealerSum > bestHand){
+      bestHand = dealerSum;
+      winners = [];
+      winners.push({uid: 'dealer', name: 'dealer'});
+    }else if(dealerSum == bestHand){
+      winners.push({uid: 'dealer', name: 'dealer'});
+    }
   }
 
   return winners;
@@ -523,7 +525,8 @@ async function giveortakeMoney(tablename, winners){
   }
 
   for(const winner of winners){
-    if(winner.uid != 'dealer'){
+    console.log(winner);
+    if(winner.uid !== 'dealer'){
       const playerRef = admin.firestore().collection("users").doc(winner.uid);
       await playerRef.update({
         balance: admin.firestore.FieldValue.increment(moneyPerPlayer),
@@ -534,8 +537,9 @@ async function giveortakeMoney(tablename, winners){
   }
 }
 
-async function endGame(tablename){
-  const winners = getWinners(tablename);
+async function endGame(tablename, allBusted){
+  const winners = getWinners(tablename, allBusted);
+
   io.to(tablename).emit("endGame", winners);
 
   await giveortakeMoney(tablename, winners);
@@ -556,25 +560,34 @@ async function endGame(tablename){
   activeTables.delete(tablename);
 }
 
-function handSum(hand){
+function handSum(hand) {
   let sum = 0;
-  let A = 0;
-  for(const card of hand){
-    const cardNum = card[0];
-    if(cardNum === 'A'){
-      A++;
-      sum += 11;
-    }else if(cardNum === "J" || cardNum === "Q" || cardNum === "K"){
-      sum += 10;
-    }else{
-      sum += parseInt(cardNum);
+  let aceCount = 0;
+
+  for (const card of hand) {
+    const value = card.split(' ')[0];
+
+    switch (value) {
+      case 'A':
+        aceCount++;
+        sum += 11;
+        break;
+      case 'J':
+      case 'Q':
+      case 'K':
+        sum += 10;
+        break;
+      default:
+        sum += parseInt(value);
+        break;
     }
   }
 
-  while(sum > 21 && A > 0){
+  while (sum > 21 && aceCount > 0) {
     sum -= 10;
-    A--;
+    aceCount--;
   }
+
   return sum;
 }
 
@@ -602,6 +615,18 @@ async function dealDealer(tablename){
     const tableState = activeTables.get(tablename);
     const dealerHand = tableState.dealer.hand;
 
+    let allBusted = true;
+
+    for(const player of tableState.players.values()){
+      if(handSum(player.hand) <= 21){
+        allBusted = false;
+      }
+    }
+
+    if(allBusted){
+      return endGame(tablename, allBusted);
+    }
+
     io.to(tablename).emit("updateCards", getCards(tablename, true));
 
     await sleep(1500);
@@ -618,7 +643,7 @@ async function dealDealer(tablename){
     tableState.dealer.hasStood = true;
     activeTables.set(tablename, tableState); 
 
-    endGame(tablename);
+    endGame(tablename, allBusted);
 }
 
 function getCards(tablename, allPlayersStood){
