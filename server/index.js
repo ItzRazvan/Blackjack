@@ -135,7 +135,7 @@ app.post(process.env.UPDATE_LAST_LOGIN_ENDPOINT, async (req, res) => {
 
     const timestamp = admin.firestore.Timestamp.now();
 
-    await admin.firestore().collection('users').doc(decodedToken.uid).set({
+    await admin.firestore().collection('users').doc(decodedToken.uid).update({
       'last login': timestamp,
     });
 

@@ -44,8 +44,10 @@ function SignIn() {
         const additionalInfo = getAdditionalUserInfo(result);
         const user = result.user;
         localStorage.setItem("uid", user.uid);
+
+        const idToken = await user.getIdToken();
+
         if (additionalInfo.isNewUser) {
-            const idToken = await user.getIdToken();
             const userData = {
                 uid: user.uid,
                 email: user.email,
@@ -57,14 +59,18 @@ function SignIn() {
         }
     };
 
-    return (
-        <div className="signin">
-            <GoogleButton 
-                className="google_btn" 
-                onClick={handleGoogleSignIn}
-            >
-                Sign in with Google
-            </GoogleButton>
+return (
+        <div className="container">
+            <img src="/cards/ace_of_spades.png" alt="Ace of Spades" className="card card-ace" />
+            <img src="/cards/jack_of_clubs.png" alt="Jack of Clubs" className="card card-jack" />
+
+            <div className="signin">
+                <h1>Sign In</h1>
+                <GoogleButton 
+                    className="google_btn" 
+                    onClick={handleGoogleSignIn}
+                />
+            </div>
         </div>
     );
 }

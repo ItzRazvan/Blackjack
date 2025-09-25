@@ -6,6 +6,9 @@
   align-items: center;     
   text-align: center;
   height: calc(100vh - 64px);
+  background-image: linear-gradient(rgba(0, 0, 0, 0.7), rgba(0, 0, 0, 0.7)), url('/signin_background.jpg');
+  background-size: cover;
+  background-position: center;
 }
 
 .hero_content {

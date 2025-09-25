@@ -1,8 +1,58 @@
-
+@import url('https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@400;700&family=Cinzel:wght@700&display=swap');
+.container {
+    display: flex;
+    justify-content: center; 
+    align-items: center;   
+    height: 100vh;
+    
+    background-color: #121212;
+    background-image: linear-gradient(rgba(0, 0, 0, 0.7), rgba(0, 0, 0, 0.7)), url('/signin_background.jpg');
+    background-size: cover;
+    background-position: center;
+    background-attachment: fixed;
+}
 .signin{
     display: flex;
-    justify-content: center;
-    align-items: center;     
+    flex-direction: column;
+    align-items: center;
+    gap: 1.5rem;
+    padding: 10vh;
+
+
+    background-color: rgba(20, 20, 20, 0.6);
+    padding: 2.5rem;
+    border-radius: 16px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+    backdrop-filter: blur(4px); 
+
+    z-index: 1;
     text-align: center;
-    height: 85vh;
+}
+
+.signin h1{
+  font-family: 'Cinzel', serif;
+}
+
+.google_btn {
+    width: 100% !important;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3) !important;
+}
+
+.card {
+    position: absolute;
+    width: 120px;
+    height: auto;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+    border-radius: 10px;
+}
+
+.card-ace {
+    transform: rotate(-15deg) translate(-60px, -20px);
+    z-index: 0; 
+}
+
+.card-jack {
+    transform: rotate(10deg) translate(60px, 20px);
+    z-index: 0; 
 }
