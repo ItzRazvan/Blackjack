@@ -29,16 +29,35 @@ function CreateTable() {
     })
 
     return(
-        <Popup trigger={ <Button variant='contained'>Create Table</Button>} position="right center">
-             <div>
-                <form onSubmit={handleSubmit(onSubmit)}> 
-                    <label>Table Name
-                        <input {...register("tablename")}/>
-                    </label>
-                    <input type="submit" value="Create"/>
-                </form>
-             </div>
-        </Popup>
+    <Popup 
+        trigger={
+            <Button variant='contained' className='createTableBtn'>Create Table</Button>
+        }
+        modal 
+        nested
+    >
+        {close => (
+            <div className="modal">
+                <button className="close" onClick={close}>
+                &times;
+                </button>
+                <h2 className="header">Create a New Table</h2>
+                <div className="content">
+                    <form onSubmit={handleSubmit(onSubmit)} className="createTableForm"> 
+                        <label htmlFor="tableNameInput">Table Name</label>
+                        <input 
+                            id="tableNameInput"
+                            type="text" 
+                            {...register("tablename")}
+                        />
+                        <Button type="submit" variant="contained" className='formSubmitBtn'>
+                            Create Table
+                        </Button>
+                    </form>
+                </div>
+            </div>
+        )}
+    </Popup>
     )
 }
 

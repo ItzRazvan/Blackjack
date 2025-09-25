@@ -3,6 +3,7 @@ import { useNavigate, useParams } from "react-router-dom"
 import { socket } from "../../services/Socket";
 import Button from "@mui/material/Button";
 import { useState } from "react";
+import PlayerSeat from "../PlayerSeat";
 
 function TableView() {
     const [players, setPlayers] = useState([]);
@@ -110,97 +111,102 @@ function TableView() {
         }
     }, [data.tablename, navigate])
 
+    const uid = localStorage.getItem("uid");
+    const dealer = cards?.find(p => p.name === 'Dealer');
+    const playersWithoutDealer = cards?.filter(p => p.name !== 'Dealer');
+
+    const activeGameStates = [
+        'betting', 
+        'betSet', 
+        'dealCards', 
+        'yourTurn', 
+        'wasYourTurn', 
+        'allPlayersStood'
+    ];
+
     return (
-        <div>
-            <h1>{data.tablename}</h1>
+        <div className="game-table">
+            <h1 className="table-title">{data.tablename}</h1>
+
             {gameState === 'waiting' && (
-                <div>
-                    <Button variant="contained" onClick={startGame}>Start game</Button>
-                    <ul>
+                <div className="waiting-lobby">
+                    <h2>Waiting for Players...</h2>
+                    <ul className="player-list">
                         {players && players.map((player) => (
                             <li key={player.uid}>{player.username}</li>
                         ))}
-                    </ul>   
-                </div>
-            )}
-            {gameState === 'betting' && (
-                <div>
-                <h2>Betting Phase</h2>
-                <Button variant="contained" onClick={() => placeBet(100)}>Place Bet 100</Button>
-                    {betStatus === false && <p style={{color: 'red'}}>Not enough money!</p>}
-                    {betStatus === true && <p style={{color: 'green'}}>Bet placed!</p>}
-                </div>
-            )}
-            {gameState === 'betSet' && (
-                <div>
-                    <p>Waiting for the others to bet</p>
-                </div>
-            )}
-            {(gameState === 'dealCards' || gameState === 'wasYourTurn') && (
-                <div>
-                    <ul>
-                        {cards && cards.map((card) => (
-                            <li key={card.uid}>
-                                <p>{card.name}:</p>
-                                <ul>
-                                    {card.hand.map((c, idx) => (
-                                        <li key={idx}>{c}</li>
-                                    ))}
-                                </ul>
-                            </li>
-                        ))}
                     </ul>
-                </div>
-            )}
-            {gameState === 'yourTurn' && (
-                <div>
-                    <ul>
-                        {cards && cards.map((card) => (
-                            <li key={card.uid}>
-                                <p>{card.name}:</p>
-                                <ul>
-                                    {card.hand.map((c, idx) => (
-                                        <li key={idx}>{c}</li>
-                                    ))}
-                                </ul>
-                            </li>
-                        ))}
-                    </ul>
-                    <Button variant="contained" onClick={hit}>Hit</Button>
-                    <Button variant="contained" onClick={stand}>Stand</Button>
-                </div>
-            )}
-            {gameState === 'allPlayersStood' && (
-                <div>
-                    <ul>
-                        {cards && cards.map((card) => (
-                            <li key={card.uid}>
-                                <p>{card.name}:</p>
-                                <ul>
-                                    {card.hand.map((c, idx) => (
-                                        <li key={idx}>{c}</li>
-                                    ))}
-                                </ul>
-                            </li>
-                        ))}
-                    </ul>
-                </div>
-            )}
-            {gameState === 'end' && (
-                <div>
-                    <h3>Winners:</h3>
-                    <ul>
-                        {winners && winners.map((winner) => (
-                            <li key={winner.uid}>
-                                <p>{winner.name}</p>
-                            </li>
-                        ))}
-                    </ul>
+                    <Button variant="contained" color="success" size="large" onClick={startGame}>
+                        Start Game
+                    </Button>
                 </div>
             )}
 
+            {gameState === 'end' && (
+                <div className="winner-modal">
+                    <h2>Round Over!</h2>
+                    <h3>Winners:</h3>
+                    <ul className="winner-list">
+                        {winners && winners.length > 0 ? (
+                            winners.map((winner) => (
+                                <li key={winner.uid}>{winner.name}</li>
+                            ))
+                        ) : (
+                            <li>No winners this round.</li>
+                        )}
+                    </ul>
+                    <p className="modal-subtext">Returning to the table list...</p>
+                </div>
+            )}
+
+            {activeGameStates.includes(gameState) && (
+            <>
+                <div className="dealer-area">
+                    {dealer && <PlayerSeat player={dealer} />}
+                </div>
+
+                <div className="actions-area">
+
+                    {gameState === 'betting' && (
+                        <div className="action-buttons">
+                            <Button 
+                                variant="contained" 
+                                color="success" 
+                                onClick={() => placeBet(100)}
+                                sx={{
+                                    padding: '12px 30px',
+                                    fontSize: '1.2rem',
+                                    fontWeight: 'bold',
+                                    animation: 'pulse 1.5s infinite'
+                                }}
+                            >
+                                Bet 100
+                            </Button>
+                            {betStatus === false && <p style={{color: 'red'}}>Not enough money!</p>}
+                        </div>
+                    )}
+
+                    {gameState === 'yourTurn' && (
+                        <div className="action-buttons">
+                            <Button variant="contained" color="primary" size="large" onClick={hit}>Hit</Button>
+                            <Button variant="contained" color="secondary" size="large" onClick={stand}>Stand</Button>
+                        </div>
+                    )}
+                </div>
+                <div className="player-row">
+                    {playersWithoutDealer && playersWithoutDealer.map((player) => (
+                        <PlayerSeat
+                            key={player.uid}
+                            player={player}
+                            isCurrentPlayer={gameState === 'yourTurn' && player.uid === uid}
+                        />
+                    ))}
+                </div>
+              </>
+            )}
         </div>
-    )
+        
+    );
 }
 
-export default TableView
+export default TableView;

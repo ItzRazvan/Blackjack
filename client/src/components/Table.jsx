@@ -1,29 +1,31 @@
-import Button from '@mui/material/Button'
-import { useNavigate } from 'react-router-dom'
+import Button from '@mui/material/Button';
+import { useNavigate } from 'react-router-dom';
 
-
-function Table(props){
+function Table(props) {
     const navigate = useNavigate();
-    return(
-        <>
-            <div className="table">
-                <div className="table_info">
-                    <h4 className="name">
-                        {props.name}
-                    </h4>
-                    <h4 className="players">
-                        Players: {props.players}
-                    </h4>
-                </div>
-                <div className="join_table">
-                    <Button variant="contained" className="join_table_btn" onClick={() => {navigate(`/table/${props.name}`)}}>
-                        Join
-                    </Button>
+
+    const handleJoin = () => {
+        navigate(`/table/${props.name}`);
+    };
+
+    return (
+        <div className="table-card">
+            <div className="card-info">
+                <h3 className="card-title">{props.name}</h3>
+                <div className="card-players">
+                    <span>{props.players} / 8</span>
                 </div>
             </div>
-        </>
-    )
+
+            <Button 
+                variant="contained" 
+                color="success" 
+                onClick={handleJoin}
+            >
+                Join
+            </Button>
+        </div>
+    );
 }
 
-
-export default Table
+export default Table;

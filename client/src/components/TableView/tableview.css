@@ -1,0 +1,225 @@
+img{
+    height: 15vh;
+}
+/* Import a fitting font from Google Fonts */
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap');
+
+.game-table {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between; 
+  align-items: center;
+  height: 100vh;
+  width: 100vw;
+  padding: 2rem;
+  box-sizing: border-box; 
+
+  background-color: #0b602c;
+  background-image: radial-gradient(circle, #0f7a39 1px, transparent 1px);
+  background-size: 5px 5px;
+
+  font-family: 'Poppins', sans-serif;
+  color: white;
+  position: relative;
+}
+
+.table-title {
+  position: absolute;
+  top: 1rem;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0, 0, 0, 0.4);
+  padding: 0.5rem 1.5rem;
+  border-radius: 12px;
+  font-size: 1.2rem;
+  font-weight: 600;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.dealer-area, .players-area, .actions-area {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.players-area {
+    gap: 1rem;
+}
+
+.actions-area {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+}
+
+.game-status {
+  text-shadow: 0 2px 4px rgba(0,0,0,0.7);
+  font-size: 2.5rem;
+  font-weight: 700;
+  text-align: center;
+}
+
+.action-buttons {
+  display: flex;
+  gap: 1rem;
+}
+
+.waiting-lobby {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.5rem;
+
+  background-color: rgba(0, 0, 0, 0.7);
+  padding: 2rem 3rem;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+  backdrop-filter: blur(5px);
+  width: 90%;
+  max-width: 450px;
+}
+
+.waiting-lobby h2 {
+  margin: 0;
+  font-size: 1.8rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+  padding-bottom: 1rem;
+  width: 100%;
+  text-align: center;
+}
+
+.player-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  width: 100%;
+  text-align: center;
+}
+
+.player-list li {
+  background-color: rgba(255, 255, 255, 0.1);
+  padding: 0.75rem;
+  border-radius: 8px;
+  margin-bottom: 0.5rem;
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.players-area {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.main-player-seat,
+.other-player-seat {
+  position: absolute;
+  pointer-events: auto;
+}
+
+.actions-area {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  z-index: 10; 
+}
+
+.player-row {
+  position: absolute;
+  bottom: 2rem;
+  left: 0;
+  right: 0;
+  
+  display: flex;
+  justify-content: center;
+  align-items: flex-end;
+  gap: 1rem;
+}
+
+@keyframes pulse {
+  0% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 rgba(76, 175, 80, 0.7);
+  }
+  70% {
+    transform: scale(1.05);
+    box-shadow: 0 0 10px 20px rgba(76, 175, 80, 0);
+  }
+  100% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 rgba(76, 175, 80, 0);
+  }
+}
+
+.winner-modal {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 20; 
+  
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+
+  background-color: rgba(0, 0, 0, 0.8);
+  padding: 2rem 3rem;
+  border-radius: 16px;
+  border: 1px solid #f9d71c; 
+  box-shadow: 0 0 30px rgba(249, 215, 28, 0.5);
+  backdrop-filter: blur(5px);
+  width: 90%;
+  max-width: 450px;
+  text-align: center;
+}
+
+.winner-modal h2 {
+  margin: 0;
+  font-size: 2rem;
+  color: #f9d71c;
+}
+
+.winner-modal h3 {
+    margin: 0;
+}
+
+.winner-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  width: 100%;
+}
+
+.winner-list li {
+  background-color: rgba(255, 255, 255, 0.1);
+  padding: 0.75rem;
+  border-radius: 8px;
+  margin-bottom: 0.5rem;
+  font-size: 1.2rem;
+  font-weight: 600;
+}
+
+.modal-subtext {
+    margin-top: 1rem;
+    color: #ccc;
+    font-style: italic;
+}

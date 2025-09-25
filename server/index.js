@@ -174,7 +174,7 @@ async function createTable(tablename, uid){
 function createDeck(){
   const cards = ["Hearts", "Diamonds", "Clubs", "Spades"];
   const values = [
-    "A", "K", "Q", "J",
+    "Ace", "King", "Queen", "Jack",
     "2", "3", "4", "5", "6", "7", "8", "9", "10",
   ]
   let deck = [];
@@ -289,7 +289,7 @@ io.use(async(socket, next) => {
 
 
 async function emitTables(socket = null) {
-  const tables = (await admin.firestore().collection("tables").where("state", "==", "waiting").get()).docs.map(doc => ({
+  const tables = (await admin.firestore().collection("tables").where("state", "==", "waiting").where("players", "<", 8).get()).docs.map(doc => ({
     id: doc.id,
     ...doc.data()
   }));
@@ -497,7 +497,7 @@ function getWinners(tablename, allBusted){
 
 async function giveortakeMoney(tablename, winners){
   const tableState = activeTables.get(tablename);
-  const playerNumber = tableState.players.size;
+  const playerNumber = tableState.players.size + 1;
   const moneyPerPlayer = Math.round((playerNumber * 100) / winners.length);
 
   for(const player of tableState.players.values()){
@@ -506,18 +506,16 @@ async function giveortakeMoney(tablename, winners){
     console.log(player);
       const playerRef = admin.firestore().collection("users").doc(player.uid);
       await playerRef.update({
-        balance: admin.firestore.FieldValue.increment(-100),
         'games played': admin.firestore.FieldValue.increment(1),
       });
     }
   }
 
   for(const winner of winners){
-    console.log(winner);
     if(winner.uid !== 'dealer'){
       const playerRef = admin.firestore().collection("users").doc(winner.uid);
       await playerRef.update({
-        balance: admin.firestore.FieldValue.increment(moneyPerPlayer),
+        'balance': admin.firestore.FieldValue.increment(moneyPerPlayer),
         'games won': admin.firestore.FieldValue.increment(1),
         'games played': admin.firestore.FieldValue.increment(1),
     })
@@ -556,13 +554,13 @@ function handSum(hand) {
     const value = card.split(' ')[0];
 
     switch (value) {
-      case 'A':
+      case 'Ace':
         aceCount++;
         sum += 11;
         break;
-      case 'J':
-      case 'Q':
-      case 'K':
+      case 'Jack':
+      case 'Queen':
+      case 'King':
         sum += 10;
         break;
       default:

@@ -33,16 +33,22 @@ function Tables(){
     }, []);
 
 
-    return(
-        <>
-            <NavBar/>
-            <div className="tables">
-                {tables.map(table => ( 
-                    <Table name={table.name} players={table.players} id={table.id} key={table.id}/>
-                ))}
+return (
+        <div className="tables-page">
+            <NavBar />
+            <div className="tables-container">
+                <header className="tables-header">
+                    <h1>Join a Game</h1>
+                </header>
+
+                <div className="tables-grid">
+                    {tables.map(table => (
+                        <Table name={table.name} players={table.players} id={table.id} key={table.id} />
+                    ))}
+                </div>
             </div>
-            <CreateTable/>
-        </>
+            <CreateTable />
+        </div>
     );
 }
 

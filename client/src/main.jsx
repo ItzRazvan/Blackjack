@@ -7,6 +7,7 @@ import './components/Home/home.css'
 import './components/Tables/tables.css'
 import './components/SingIn/signin.css'
 import './components/TableView/tableview.css'
+import './components/TableView/playerseat.css'
 
 createRoot(document.getElementById('root')).render(
     <BrowserRouter>

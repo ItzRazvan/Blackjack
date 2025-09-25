@@ -1,19 +1,44 @@
+@import url('https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@400;700&family=Cinzel:wght@700&display=swap');
 
-.find_game {
+.hero {
   display: flex;
   justify-content: center; 
-  height: 85vh;
   align-items: center;     
   text-align: center;
+  height: calc(100vh - 64px);
 }
 
-.find_game_btn{
-  padding: 16px 48px !important;
-  font-size: 1.5rem !important;
-  border-radius: 12px !important;
-  background-color: #1976d2 !important;
-  color: white !important;
-  box-shadow: 0 4px 16px rgba(0,0,0,0.2) !important;
-  text-transform: none !important;
-  font-family: monospace !important;
+.hero_content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.5rem;
+
+  max-width: 700px;
+
+  background-color: rgba(20, 20, 20, 0.6);
+  padding: 2.5rem;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+  backdrop-filter: blur(4px); 
+}
+
+.hero_content h1 {
+  color: white;
+  font-family: 'Cinzel', serif;
+  font-size: 3.5rem;
+  font-weight: 700;
+  margin: 0;
+  letter-spacing: 2px;
+  text-shadow: 0 2px 4px rgba(0,0,0,0.5);
+}
+
+@media (max-width: 768px) {
+  .hero_content h1 {
+    font-size: 2.5rem;
+  }
+  .hero_content {
+    padding: 2rem;
+  }
 }
