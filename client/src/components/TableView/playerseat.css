@@ -46,10 +46,27 @@
   box-shadow: 0 4px 10px rgba(0, 0, 0, 0.6);
   transition: transform 0.3s ease;
   border: 1px solid rgba(0,0,0,0.3);
+
+  transition: margin 0.1s ease, transform 0.3s ease, opacity 0.3s ease;
+}
+
+@keyframes cardEnter {
+  from {
+    opacity: 0;
+    transform: translateY(-20px) scale(1.1);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.card.new {
+  animation: cardEnter 0.3s ease forwards;
 }
 
 .card:hover {
-  transform: translateY(-12px);
+  transform: translateY(-10px);
 }
 
 .player-seat {

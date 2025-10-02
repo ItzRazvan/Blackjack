@@ -1,8 +1,6 @@
-import { getAuth } from 'firebase/auth'
-import firebaseApp from '../firebase'
+import {auth} from '../firebase'
 
 const logout  = async () => {
-    const auth = getAuth(firebaseApp);
     if(auth.currentUser) {
         localStorage.removeItem("uid");
         auth.signOut();

@@ -1,15 +1,14 @@
-import { getAuth, signInWithPopup, getAdditionalUserInfo, getRedirectResult, signInWithRedirect } from "firebase/auth"; 
+import { signInWithPopup, getAdditionalUserInfo, getRedirectResult, signInWithRedirect } from "firebase/auth"; 
 import { GoogleAuthProvider } from "firebase/auth";
 import { useNavigate } from "react-router-dom";
 import GoogleButton from 'react-google-button';
-import firebaseApp from '../../firebase';
+import { auth } from '../../firebase';
 import { addUser } from "../../services/AddUser";
 import { updateLastLogin } from "../../services/UpdateLastLogin";
 import { useEffect } from "react";
 
 function SignIn() {
     const navigate = useNavigate();
-    const auth = getAuth(firebaseApp);
 
     useEffect(() => {
         getRedirectResult(auth)

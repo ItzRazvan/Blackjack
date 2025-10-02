@@ -563,6 +563,8 @@ function handSum(hand) {
       case 'King':
         sum += 10;
         break;
+      case 'X':
+        break;
       default:
         sum += parseInt(value);
         break;
@@ -610,6 +612,7 @@ async function dealDealer(tablename){
     }
 
     if(allBusted){
+      await sleep(2000);
       return endGame(tablename, allBusted);
     }
 
@@ -641,7 +644,8 @@ function getCards(tablename, allPlayersStood){
     cards.push({
       uid: uid,
       name: player.name,
-      hand: player.hand
+      hand: player.hand,
+      handValue: handSum(player.hand),
     });
   }
 
@@ -660,6 +664,7 @@ function getCards(tablename, allPlayersStood){
     uid: "dealer",
     name: "dealer",
     hand: dealerHand,
+    handValue: handSum(dealerHand),
   });
 
   return cards;
